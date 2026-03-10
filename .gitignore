@@ -34,6 +34,14 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Blogger project specifics
-docs/블로그 자동화 기획/*
-!docs/PRD.md
+# ==========================================
+# Blogger Project Specifics
+# ==========================================
+# 루트 디렉토리의 모든 파일/폴더를 기본적으로 무시합니다.
+/*
+
+# 단, Git으로 관리해야 하는 항목들은 예외 처리합니다.
+!/automation/
+!.gitignore
+
+# (참고) automation 폴더 내부에서도 위의 전역 설정(예: .env, __pycache__ 등)은 정상적으로 무시됩니다.

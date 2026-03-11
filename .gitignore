@@ -1,47 +1,41 @@
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# macOS
-.DS_Store
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
 # ==========================================
-# Blogger Project Specifics
+# 1. 모든 파일 무시 (기본 설정)
 # ==========================================
-# 루트 디렉토리의 모든 파일/폴더를 기본적으로 무시합니다.
 /*
 
-# 단, Git으로 관리해야 하는 항목들은 예외 처리합니다.
-!/automation/
-!.gitignore
+# ==========================================
+# 2. 관리 대상 예외 처리 (올라가야 하는 것들)
+# ==========================================
 
-# (참고) automation 폴더 내부에서도 위의 전역 설정(예: .env, __pycache__ 등)은 정상적으로 무시됩니다.
+# 자동화 소스코드 및 설정 폴더
+!/automation/
+!/.github/    # GitHub Actions 워크플로우
+
+# 설정 파일 및 정보 파일
+!/.gitignore
+!/README.md
+!/PRD.md
+
+# ==========================================
+# 3. 예외 폴더 안에서도 제외할 항목 (보안 및 캐시)
+# ==========================================
+
+# 파이썬 캐시
+**/__pycache__/
+**/*.py[cod]
+
+# 가상 환경
+**/venv/
+**/.venv/
+
+# 보안 필수 (절대 제외)
+**/.env
+**/credentials/ 
+**/*.json
+!**/package.json    # JSON 중 필요한 파일은 예외
+!**/src/*.json      # 소스 내 필요한 설정 JSON이 있다면 예외
+
+# OS 및 에디터
+.DS_Store
+.vscode/
+.idea/

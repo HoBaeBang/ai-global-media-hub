@@ -11,6 +11,10 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 # 슈파베이스 설정
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "blog-images")
+
+# 알림 설정 (Slack/Discord)
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 # 타겟 국가 및 설정 정보
 TARGET_COUNTRIES = {

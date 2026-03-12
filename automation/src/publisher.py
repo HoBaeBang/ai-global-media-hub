@@ -1,11 +1,10 @@
-import logging
 import os
 from typing import Optional, List
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
+from tenacity import retry, stop_after_attempt, wait_exponential
 from config import TARGET_COUNTRIES
+from notifier import notify_post_success, notify_error
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +12,10 @@ logger = logging.getLogger(__name__)
 # Most users prefer Service Account for server-side automation if the blog 
 # belongs to a workspace, but for personal blogs, OAuth2 with Refresh Token is common.
 # I'll implement a flexible structure that looks for credentials.
+
+# FIX: For the 404 error on 'database-modeling-and-erd_01849288559.html', 
+# user needs to manually set a 301 redirect to 'database-modeling-and-erd.html' 
+# in the Blogger dashboard: Settings > Errors and redirects > Custom redirects.
 
 class BloggerPublisher:
     """
@@ -72,13 +75,21 @@ class BloggerPublisher:
                 'labels': labels or []
             }
             
-            # Execute request
-            posts = self.service.posts()
-            request = posts.insert(blogId=blog_id, body=post_body, isDraft=False)
-            response = request.execute()
+            @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=20))
+            def _execute_publish():
+                posts = self.service.posts()
+                request = posts.insert(blogId=blog_id, body=post_body, isDraft=False)
+                return request.execute()
+
+            response = _execute_publish()
             
             post_id = response.get("id")
             logger.info(f"Successfully published post '{title}' to {country_code}. Post ID: {post_id}")
+            
+            # Send Slack notification
+            import asyncio
+            asyncio.create_task(notify_post_success(country_code, title, post_id))
+
             return post_id
             
         except Exception as e:

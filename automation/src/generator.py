@@ -1,7 +1,9 @@
 import logging
 import google.generativeai as genai
 from typing import Optional
+from tenacity import retry, stop_after_attempt, wait_exponential
 from config import GEMINI_API_KEY, TARGET_COUNTRIES
+from image_manager import image_manager
 
 logger = logging.getLogger(__name__)
 
@@ -46,29 +48,43 @@ class ContentGenerator:
         if not self.model:
             return None
             
+        @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=20))
+        def _call_gemini(prompt):
+            return self.model.generate_content(prompt)
+
         country_info = TARGET_COUNTRIES.get(country_code, {})
         lang = country_info.get("lang", "en")
         country_name = country_info.get("name", country_code)
 
+        # 1. Generate Thumbnail Image
+        thumbnail_url = await image_manager.create_thumbnail(trend_title)
+        
+        # 2. Build Post Prompt
         prompt = f"""
-        Topic: {trend_title}
-        Target Country: {country_name}
-        Language: {lang}
+        당신은 전문적인 블로거이자 검색 엔진 최적화(SEO) 전문가입니다.
+        다음 트렌드 키워드를 바탕으로 '{country_name}'({lang}) 현지인을 위한 매력적이고 유익한 블로그 원고를 작성해 주세요.
+Language: {lang}
         
         Please write a comprehensive blog post in {lang} about the topic '{trend_title}' for an audience in {country_name}.
         """
         
         try:
             # Note: SDK is sync, but we treat it as async compatible conceptually here.
-            # For 24/7 automation, small block is fine.
             import asyncio
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None, 
-                lambda: self.model.generate_content(prompt)
+                lambda: _call_gemini(prompt)
             )
             
-            return response.text
+            html_content = response.text
+            
+            # Prepend thumbnail if generated
+            if thumbnail_url:
+                thumbnail_tag = f'<div style="text-align: center; margin-bottom: 20px;"><img src="{thumbnail_url}" alt="{trend_title}" style="max-width: 100%; border-radius: 8px;"></div>\n'
+                html_content = thumbnail_tag + html_content
+
+            return html_content
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}")
             return None

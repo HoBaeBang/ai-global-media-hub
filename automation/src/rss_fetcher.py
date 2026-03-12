@@ -5,10 +5,23 @@ import asyncio
 from typing import List, Dict, Optional
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from tenacity import retry, stop_after_attempt, wait_exponential
 from models import TrendItem
 from config import TARGET_COUNTRIES
 
 logger = logging.getLogger(__name__)
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+async def _do_rss_request(url: str):
+    """실제 RSS 요청을 수행 (재시도 로직 포함)"""
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        # 봇 탐지 방지를 위한 User-Agent 설정
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
 
 async def fetch_rss_trends(country_code: str) -> List[TrendItem]:
     """
@@ -23,14 +36,9 @@ async def fetch_rss_trends(country_code: str) -> List[TrendItem]:
     logger.info(f"[{country_code}] Fetching RSS trends from {url}...")
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            # Use a browser-like User-Agent to avoid simple blocks
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-            response = await client.get(url, headers=headers, timeout=20.0)
-            response.raise_for_status()
-            xml_content = response.text
+        xml_content = await _do_rss_request(url)
     except Exception as e:
-        logger.error(f"[{country_code}] Failed to fetch RSS content: {e}")
+        logger.error(f"[{country_code}] Failed to fetch RSS content after retries: {e}")
         return []
 
     # feedparser is sync, but fast.

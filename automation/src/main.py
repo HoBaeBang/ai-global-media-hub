@@ -5,6 +5,7 @@ from db_client import db
 from generator import generator
 from publisher import publisher
 from config import TARGET_COUNTRIES
+from notifier import notify_error
 
 # Configure logging
 logging.basicConfig(

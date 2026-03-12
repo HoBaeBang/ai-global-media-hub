@@ -3,6 +3,7 @@ import os
 from typing import List, Dict
 from datetime import datetime
 from googleapiclient.discovery import build
+from tenacity import retry, stop_after_attempt, wait_exponential
 from models import TrendItem
 from config import TARGET_COUNTRIES, YOUTUBE_API_KEY
 
@@ -27,6 +28,7 @@ async def fetch_youtube_trends(country_code: str) -> List[TrendItem]:
         import asyncio
         loop = asyncio.get_event_loop()
         
+        @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
         def _get_trends():
             youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
             request = youtube.videos().list(
